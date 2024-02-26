@@ -1,5 +1,7 @@
 
 
+import csv
+import pandas as pd
 import numpy as np
 from numpy.random import rand, Generator, PCG64, MT19937, SeedSequence
 import matplotlib.pyplot as plt
@@ -10,7 +12,7 @@ from enum import Enum
 nt      = 16          #  number of temperature points
 N       = 6           #  size of the lattice, N x N
 eqSteps = 2**8        #  number of MC sweeps for equilibration
-mcSteps = 2**10       #  number of MC sweeps for calculation
+mcSteps = 2**10     #  number of MC sweeps for calculation
 
 
 
@@ -25,6 +27,8 @@ class RNG :
         elif RNG ==  PRNG.MT19937 :
             self.prng = Generator(MT19937())
 
+            
+
 def initLattice(RNG, N):
 
     lattice = RNG.prng.integers(size=(N,N), low=0, high=1, endpoint=True)
@@ -32,7 +36,14 @@ def initLattice(RNG, N):
 
     return lattice  
     
-
+def bc(i, N):
+    if i > N-1:
+        return 0
+    
+    if i < 0:
+     return N-1
+    else:
+        return i
 
 def mcmove(lattice, RNG, beta):
     '''
@@ -42,9 +53,7 @@ def mcmove(lattice, RNG, beta):
         for j in range(N):
                 a =  RNG.prng.integers(low=0, high=N, size=1, dtype=np.int8, endpoint=False)
                 b =  RNG.prng.integers(low=0, high=N, size=1, dtype=np.int8, endpoint=False)
-                a = a[0]
-                b = b[0]
-                s =  lattice[a, b]
+                s =  lattice[a[0], b[0]]
                 nb = lattice[(a+1)%N,b] + lattice[a,(b+1)%N] + lattice[(a-1)%N,b] + lattice[a,(b-1)%N]
                 cost = 2*s*nb
                 
@@ -80,16 +89,21 @@ def calcMag(config):
 rng = RNG(PRNG.MT19937)
 
 
-
+#get a array of floating temp values between the low and high
 T       = np.linspace(1.53, 3.28, nt); 
+
+#zero out the values for E, M, C and X for nt size. 
 E,M,C,X = np.zeros(nt), np.zeros(nt), np.zeros(nt), np.zeros(nt)
+
+
 n1, n2  = 1.0/(mcSteps*N*N), 1.0/(mcSteps*mcSteps*N*N) 
 
+#loop over all temperatues in the nt array
 for tt in range(nt):
     lattice = initLattice(rng, N)        # initialise
 
     E1 = M1 = E2 = M2 = 0
-    iT=1.0/T[tt]; iT2=iT*iT;
+    iT=1.0/T[tt]; iT2=iT*iT;         # beta in other words
     
     for i in range(eqSteps):         # equilibrate
         mcmove(lattice, rng, iT)           # Monte Carlo moves
@@ -111,9 +125,13 @@ for tt in range(nt):
     C[tt] = (n1*E2 - n2*E1*E1)*iT2
     X[tt] = (n1*M2 - n2*M1*M1)*iT
 
-    f = plt.figure(figsize=(18, 10)); #  
+titlestr = "MC Steps: " + str(mcSteps) + " Eq Steps: " + str(eqSteps) + " Lattice: " + str(N)
+f = plt.figure(figsize=(18, 10)); #  
+f.suptitle(titlestr)
 
-
+df = pd.DataFrame({"Temperature": T, "Energy": E, "Magnetisation": M, "Specific Heat":C, "Susceptibility": X})
+file = str(eqSteps) + "-" + str(mcSteps) + "-" + str(N)
+df.to_csv(file+".csv", index=False)
 
 sp =  f.add_subplot(2, 2, 1 );
 plt.scatter(T, E, s=50, marker='o', color='IndianRed')
