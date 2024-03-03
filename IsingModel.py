@@ -1,6 +1,9 @@
 
 
+import argparse
 import csv
+import io
+import pprint
 import pandas as pd
 import numpy as np
 from numpy.random import rand, Generator, PCG64, MT19937, SeedSequence
@@ -19,6 +22,7 @@ mcSteps = 2**10     #  number of MC sweeps for calculation
 class PRNG(Enum):
     PCG64 = 1
     MT19937 = 2
+    QRNG = 3
 
 class RNG :
     def __init__(self, RNG):
@@ -26,6 +30,7 @@ class RNG :
             self.prng=Generator(PCG64())
         elif RNG ==  PRNG.MT19937 :
             self.prng = Generator(MT19937())
+            
 
             
 
@@ -86,7 +91,24 @@ def calcMag(config):
 
 
 #rng = RNG(PRNG.PCG64)
-rng = RNG(PRNG.MT19937)
+rngstr = ""
+# if (PRNG.MT19937):
+#     rng = RNG(PRNG.MT19937)
+#     rngstr = "Mersenne Twister"
+
+if (PRNG.PCG64):
+    rng = RNG(PRNG.PCG64)
+    rngstr = "PCG64"
+
+titlestr = "RNG-" + rngstr + "-MCSteps-" + str(mcSteps) + "-EqSteps-" + str(eqSteps) + "-Lattice:" + str(N)
+
+
+parser = argparse.ArgumentParser(prog="IsingModel")
+subparser = parser.add_subparsers(title="actions")
+parser_list = subparser.add_parser('RNG choices', help="Specify a RNG")
+parser_list.add_argument("-RNG", required=True, choices=['PCG64','MT19937'])
+args = parser.parse_args()
+print(vars(args))
 
 
 #get a array of floating temp values between the low and high
@@ -125,7 +147,6 @@ for tt in range(nt):
     C[tt] = (n1*E2 - n2*E1*E1)*iT2
     X[tt] = (n1*M2 - n2*M1*M1)*iT
 
-titlestr = "MC Steps: " + str(mcSteps) + " Eq Steps: " + str(eqSteps) + " Lattice: " + str(N)
 f = plt.figure(figsize=(18, 10)); #  
 f.suptitle(titlestr)
 
@@ -156,4 +177,8 @@ plt.scatter(T, X, s=50, marker='o', color='RoyalBlue')
 plt.xlabel("Temperature (T)", fontsize=20); 
 plt.ylabel("Susceptibility", fontsize=20);   plt.axis('tight');
 
-plt.show()
+#plt.show()
+plotstr = rngstr + "-MCS-"+ str(mcSteps) + "-EQS-" + str(eqSteps) + "-Grid-" + str(N) + ".svg"
+plt.savefig(plotstr, format="svg")
+plt.close()
+
