@@ -3,6 +3,7 @@
 import argparse
 import csv
 import io
+import os
 import pprint
 import pandas as pd
 import numpy as np
@@ -90,95 +91,162 @@ def calcMag(config):
     return mag
 
 
-#rng = RNG(PRNG.PCG64)
-rngstr = ""
-# if (PRNG.MT19937):
-#     rng = RNG(PRNG.MT19937)
-#     rngstr = "Mersenne Twister"
+# #rng = RNG(PRNG.PCG64)
+# rngstr = ""
+# # if (PRNG.MT19937):
+# #     rng = RNG(PRNG.MT19937)
+# #     rngstr = "Mersenne Twister"
 
-if (PRNG.PCG64):
-    rng = RNG(PRNG.PCG64)
-    rngstr = "PCG64"
+# if (PRNG.PCG64):
+#     rng = RNG(PRNG.PCG64)
+#     rngstr = "PCG64"
 
-titlestr = "RNG-" + rngstr + "-MCSteps-" + str(mcSteps) + "-EqSteps-" + str(eqSteps) + "-Lattice:" + str(N)
+# titlestr = "RNG-" + rngstr + "-MCSteps-" + str(mcSteps) + "-EqSteps-" + str(eqSteps) + "-Lattice:" + str(N)
 
+# #get a array of floating temp values between the low and high
+# T       = np.linspace(1.53, 3.28, nt); 
 
-parser = argparse.ArgumentParser(prog="IsingModel")
-subparser = parser.add_subparsers(title="actions")
-parser_list = subparser.add_parser('RNG choices', help="Specify a RNG")
-parser_list.add_argument("-RNG", required=True, choices=['PCG64','MT19937'])
-args = parser.parse_args()
-print(vars(args))
+# #zero out the values for E, M, C and X for nt size. 
+# E,M,C,X = np.zeros(nt), np.zeros(nt), np.zeros(nt), np.zeros(nt)
 
 
-#get a array of floating temp values between the low and high
-T       = np.linspace(1.53, 3.28, nt); 
+# n1, n2  = 1.0/(mcSteps*N*N), 1.0/(mcSteps*mcSteps*N*N) 
 
-#zero out the values for E, M, C and X for nt size. 
-E,M,C,X = np.zeros(nt), np.zeros(nt), np.zeros(nt), np.zeros(nt)
+# #loop over all temperatues in the nt array
+# for tt in range(nt):
+#     lattice = initLattice(rng, N)        # initialise
 
-
-n1, n2  = 1.0/(mcSteps*N*N), 1.0/(mcSteps*mcSteps*N*N) 
-
-#loop over all temperatues in the nt array
-for tt in range(nt):
-    lattice = initLattice(rng, N)        # initialise
-
-    E1 = M1 = E2 = M2 = 0
-    iT=1.0/T[tt]; iT2=iT*iT;         # beta in other words
+#     E1 = M1 = E2 = M2 = 0
+#     iT=1.0/T[tt]; iT2=iT*iT;         # beta in other words
     
-    for i in range(eqSteps):         # equilibrate
-        mcmove(lattice, rng, iT)           # Monte Carlo moves
+#     for i in range(eqSteps):         # equilibrate
+#         mcmove(lattice, rng, iT)           # Monte Carlo moves
 
-    for i in range(mcSteps):
-        mcmove(lattice, rng, iT)           
-        Ene = calcEnergy(lattice)     # calculate the energy
-        Mag = calcMag(lattice)        # calculate the magnetisation
+#     for i in range(mcSteps):
+#         mcmove(lattice, rng, iT)           
+#         Ene = calcEnergy(lattice)     # calculate the energy
+#         Mag = calcMag(lattice)        # calculate the magnetisation
 
-        E1 = E1 + Ene
-        M1 = M1 + Mag
-        M2 = M2 + Mag*Mag 
-        E2 = E2 + Ene*Ene
-
-
-    # divide by number of sites and iteractions to obtain intensive values    
-    E[tt] = n1*E1
-    M[tt] = n1*M1
-    C[tt] = (n1*E2 - n2*E1*E1)*iT2
-    X[tt] = (n1*M2 - n2*M1*M1)*iT
-
-f = plt.figure(figsize=(18, 10)); #  
-f.suptitle(titlestr)
-
-df = pd.DataFrame({"Temperature": T, "Energy": E, "Magnetisation": M, "Specific Heat":C, "Susceptibility": X})
-file = str(eqSteps) + "-" + str(mcSteps) + "-" + str(N)
-df.to_csv(file+".csv", index=False)
-
-sp =  f.add_subplot(2, 2, 1 );
-plt.scatter(T, E, s=50, marker='o', color='IndianRed')
-plt.xlabel("Temperature (T)", fontsize=20);
-plt.ylabel("Energy ", fontsize=20);         plt.axis('tight');
+#         E1 = E1 + Ene
+#         M1 = M1 + Mag
+#         M2 = M2 + Mag*Mag 
+#         E2 = E2 + Ene*Ene
 
 
-sp =  f.add_subplot(2, 2, 2 );
-plt.scatter(T, abs(M), s=50, marker='o', color='RoyalBlue')
-plt.xlabel("Temperature (T)", fontsize=20); 
-plt.ylabel("Magnetization ", fontsize=20);   plt.axis('tight');
+#     # divide by number of sites and iteractions to obtain intensive values    
+#     E[tt] = n1*E1
+#     M[tt] = n1*M1
+#     C[tt] = (n1*E2 - n2*E1*E1)*iT2
+#     X[tt] = (n1*M2 - n2*M1*M1)*iT
+
+def plotfigure(titlestr, E, T, C, X, M):
+    f = plt.figure(figsize=(18, 10)); #  
+    f.suptitle(titlestr)
+    filename = os.path.join( "C:", "\\data", titlestr)
+
+    df = pd.DataFrame({"Temperature": T, "Energy": E, "Magnetisation": M, "Specific Heat":C, "Susceptibility": X})
+    #file = str(eqSteps) + "-" + str(mcSteps) + "-" + str(N)
+    df.to_csv(filename + ".csv", index=False)
+
+    sp =  f.add_subplot(2, 2, 1 );
+    plt.scatter(T, E, s=50, marker='o', color='IndianRed')
+    plt.xlabel("Temperature (T)", fontsize=20);
+    plt.ylabel("Energy ", fontsize=20);         plt.axis('tight');
 
 
-sp =  f.add_subplot(2, 2, 3 );
-plt.scatter(T, C, s=50, marker='o', color='IndianRed')
-plt.xlabel("Temperature (T)", fontsize=20);  
-plt.ylabel("Specific Heat ", fontsize=20);   plt.axis('tight');   
+    sp =  f.add_subplot(2, 2, 2 );
+    plt.scatter(T, abs(M), s=50, marker='o', color='RoyalBlue')
+    plt.xlabel("Temperature (T)", fontsize=20); 
+    plt.ylabel("Magnetization ", fontsize=20);   plt.axis('tight');
 
 
-sp =  f.add_subplot(2, 2, 4 );
-plt.scatter(T, X, s=50, marker='o', color='RoyalBlue')
-plt.xlabel("Temperature (T)", fontsize=20); 
-plt.ylabel("Susceptibility", fontsize=20);   plt.axis('tight');
+    sp =  f.add_subplot(2, 2, 3 );
+    plt.scatter(T, C, s=50, marker='o', color='IndianRed')
+    plt.xlabel("Temperature (T)", fontsize=20);  
+    plt.ylabel("Specific Heat ", fontsize=20);   plt.axis('tight');   
 
-#plt.show()
-plotstr = rngstr + "-MCS-"+ str(mcSteps) + "-EQS-" + str(eqSteps) + "-Grid-" + str(N) + ".svg"
-plt.savefig(plotstr, format="svg")
-plt.close()
+
+    sp =  f.add_subplot(2, 2, 4 );
+    plt.scatter(T, X, s=50, marker='o', color='RoyalBlue')
+    plt.xlabel("Temperature (T)", fontsize=20); 
+    plt.ylabel("Susceptibility", fontsize=20);   plt.axis('tight');
+
+    #plt.show()
+    #plotstr = rngstr + "-MCS-"+ str(mcSteps) + "-EQS-" + str(eqSteps) + "-Grid-" + str(N) + "-TempPts-" + nt + ".svg"
+    plt.savefig(filename+".svg", format="svg")
+    plt.close()
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('RNG', choices=["PCG64", "MT"], type=str, help='Random Number Generator')
+    parser.add_argument('--MCSteps', type=int, help='Monte Carlo Sweeps')
+    parser.add_argument('--EQSteps', type=int, help='Equalibriation steps')
+    parser.add_argument('--Lattice', type=int, help='Lattice matrix')
+    parser.add_argument('--TempPts', type=int, help='Temperature Points')
+    args = parser.parse_args()
+
+
+    print(args.RNG)
+    print(args.MCSteps)
+    print(args.EQSteps)
+    print(args.Lattice)
+    print(args.TempPts)
+
+    nt = args.TempPts
+    N = args.Lattice
+    mcSteps = args.MCSteps
+    eqSteps = args.EQSteps
+    rngstr = args.RNG
+
+    if (args.RNG=="PCG64"):
+        rng = RNG(PRNG.PCG64)
+    elif (args.RNG=="MT") :
+        rng = RNG(PRNG.MT19937)
+    else :
+        raise Exception("Invalid RNG specified")
+
+
+    titlestr = "RNG-" + rngstr + "-MCSteps-" + str(mcSteps) + "-EqSteps-" + str(eqSteps) + "-Lattice-" + str(N) + "-TempPts-" + str(args.TempPts)
+    print(titlestr)
+
+    #get a array of floating temp values between the low and high
+    T       = np.linspace(1.53, 3.28, nt); 
+
+    #zero out the values for E, M, C and X for nt size. 
+    E,M,C,X = np.zeros(nt), np.zeros(nt), np.zeros(nt), np.zeros(nt)
+
+
+    n1, n2  = 1.0/(mcSteps*N*N), 1.0/(mcSteps*mcSteps*N*N) 
+
+    #loop over all temperatues in the nt array
+    for tt in range(nt):
+        lattice = initLattice(rng, N)        # initialise
+
+        E1 = M1 = E2 = M2 = 0
+        iT=1.0/T[tt]; iT2=iT*iT;         # beta in other words
+        
+        for i in range(eqSteps):         # equilibrate
+            mcmove(lattice, rng, iT)           # Monte Carlo moves
+
+        for i in range(mcSteps):
+            mcmove(lattice, rng, iT)           
+            Ene = calcEnergy(lattice)     # calculate the energy
+            Mag = calcMag(lattice)        # calculate the magnetisation
+
+            E1 = E1 + Ene
+            M1 = M1 + Mag
+            M2 = M2 + Mag*Mag 
+            E2 = E2 + Ene*Ene
+
+
+        # divide by number of sites and iteractions to obtain intensive values    
+        E[tt] = n1*E1
+        M[tt] = n1*M1
+        C[tt] = (n1*E2 - n2*E1*E1)*iT2
+        X[tt] = (n1*M2 - n2*M1*M1)*iT
+
+    plotfigure(titlestr, E, T, C, X, M)
+
+if __name__=='__main__':
+    main()
 
