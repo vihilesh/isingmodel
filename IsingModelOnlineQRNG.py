@@ -7,12 +7,14 @@ import pandas as pd
 import numpy as np
 from numpy.random import rand, Generator, PCG64, MT19937, SeedSequence
 import matplotlib.pyplot as plt
+import requests
 from scipy.sparse import spdiags,linalg,eye
 from enum import Enum
 
 
 
 count = 0
+headers={}
 
 
 
@@ -45,10 +47,7 @@ def get_Integer_QRNG_from_file(QRNG_int_file):
 
 
 def get_Float_QRNG_from_file(QRNG_float_file):
-   
     line_text = QRNG_float_file.readline()
-    # if not line_text:
-    #     print(count)
     floatline = float(line_text)
     # global count
     # count = count + 1
@@ -71,8 +70,8 @@ def mcmove(lattice, RNG, beta, QRNG_int_file, QRNG_float_file, N):
 
                 if cost < 0:
                     s *= -1
-                elif  get_Float_QRNG_from_file(QRNG_float_file) < np.exp(-cost*beta):
-                #elif  RNG.prng.random() < np.exp(-cost*beta):
+                #elif  get_Float_QRNG_from_file(QRNG_float_file) < np.exp(-cost*beta):
+                elif  RNG.prng.random() < np.exp(-cost*beta):
                     s *= -1
                 lattice[a, b] = s
     return lattice
@@ -135,8 +134,45 @@ def plotfigure(titlestr, E, T, C, X, M):
     plt.savefig(filename+".svg", format="svg")
     plt.close()
 
+def get_random_numbers_online():
+
+    global headers
+    headers = {
+        'Accept': '*/*',
+        'Accept-Encoding': 'gzip, deflate, br, zstd',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Connection': 'keep-alive',
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'Host':'qrng.anu.edu.au',
+        'Referer': 'https://qrng.anu.edu.au/random-block-hex/',
+        'Sec-Ch-Ua': '"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
+        'Sec-Ch-Ua-Mobile': '?0',
+        'Sec-Ch-Ua-Platform': "Windows",
+        'Sec-Fetch-Dest': "empty",
+        'Sec-Fetch-Mode':"cors",
+        'Sec-Fetch-Site':'same-origin',
+        'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'X-Requested-With':'XMLHttpRequest'
+    }
+
+    url_get = "https://qrng.anu.edu.au/wp-content/plugins/colours-plugin/get_block_hex.php?_=1709402362392"
+    # A POST request to tthe API
+    get_response = requests.get(url_get, headers=headers, verify=False)
+    randomhexblock = get_response.text
+    int1, int2 = 0, 0
+    int1 =  [int(number, 16) for number in randomhexblock]
+    # for i in range(0, len(randomhexblock), 16): 
+    #     substring = randomhexblock[i:i+16]
+    #     temp = (int(substring,16))
+    #     #templength = len(str(temp))
+    #     #floatnum = convert(temp, templength)
+    #     floatnum = convert(temp)
+    print(int1)
+           
 
 def main():
+    get_random_numbers_online()
+
     parser = argparse.ArgumentParser()
     parser.add_argument('RNG', choices=["Quantum"], type=str, help='Random Number Generator')
     parser.add_argument('--MCSteps', type=int, help='Monte Carlo Sweeps')
@@ -153,11 +189,9 @@ def main():
     print(args.Lattice)
     print(args.TempPts)
     print(args.Trial)
-    QRNGFloatFile = "QRNGFloat64-2-3-5-4-0-1.txt"
-    QRNGIntFile = "QRNGIntegers17-0-0.txt"
 
-    print(QRNGFloatFile)
-    print(QRNGIntFile)
+   
+
 
     nt = args.TempPts
     N = args.Lattice
@@ -176,10 +210,9 @@ def main():
     
     rng = RNG(PRNG.PCG64)
 
-    QRNGFile = "I-" + QRNGIntFile + "-" + "F-" + QRNGFloatFile
     trialstr = "-Tr-"+ str(args.Trial) # + "-"   
     titlestr = "RNG-" + rngstr + "-MCSteps-" + str(mcSteps) + "-EqSteps-" + str(eqSteps) + "-Lattice-" + str(N) + "-TempPts-" + str(args.TempPts)
-    titlestr = titlestr + QRNGFile + trialstr
+    titlestr = titlestr + trialstr
     print(titlestr)
 
     #get a array of floating temp values between the low and high
@@ -191,8 +224,6 @@ def main():
 
     n1, n2  = 1.0/(mcSteps*N*N), 1.0/(mcSteps*mcSteps*N*N) 
 
-    QRNG_Int_File_handle =  open(QRNGIntFile, 'rb')
-    QRNG_float_file_handle =  open(QRNGFloatFile, 'rb')
 
 
     #loop over all temperatues in the nt array
@@ -203,10 +234,10 @@ def main():
         iT=1.0/T[tt]; iT2=iT*iT;         # beta in other words
         
         for i in range(eqSteps):         # equilibrate
-            mcmove(lattice, rng, iT, QRNG_Int_File_handle, QRNG_float_file_handle,N)           # Monte Carlo moves
+            mcmove(lattice, rng, iT,N)           # Monte Carlo moves
 
         for i in range(mcSteps):
-            mcmove(lattice, rng, iT, QRNG_Int_File_handle, QRNG_float_file_handle,N)           
+            mcmove(lattice, rng, iT, N)           
             Ene = calcEnergy(lattice, N)     # calculate the energy
             Mag = calcMag(lattice)        # calculate the magnetisation
 
@@ -226,8 +257,6 @@ def main():
 
     plotfigure(titlestr, E, T, C, X, M)
 
-    QRNG_Int_File_handle.close
-    QRNG_float_file_handle.close
 
 if __name__=='__main__':
     main()

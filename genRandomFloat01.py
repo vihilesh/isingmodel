@@ -18,6 +18,11 @@ def convert(number,points):
 
     return number / decimal
 
+def convert(number):
+    decimal = pow(2,64) # power function
+
+    return number / decimal
+
 
 
 headers = {
@@ -49,13 +54,14 @@ url_get = "https://qrng.anu.edu.au/wp-content/plugins/colours-plugin/get_block_h
 get_response = requests.get(url_get, headers=headers, verify=False)
 randomhexblock = get_response.text
 
-hexfile = open("QRNGFloat.txt", "a") 
+hexfile = open("QRNGFloat64-8.txt", "a") 
 
-for i in range(0, len(randomhexblock), 6): 
-    substring = randomhexblock[i:i+6]
+for i in range(0, len(randomhexblock), 16): 
+    substring = randomhexblock[i:i+16]
     temp = (int(substring,16))
-    templength = len(str(temp))
-    floatnum = convert(temp, templength)
+    #templength = len(str(temp))
+    #floatnum = convert(temp, templength)
+    floatnum = convert(temp)
     hexfile.write(str(floatnum)+"\n")
    
 hexfile.close

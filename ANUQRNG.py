@@ -12,9 +12,9 @@ form_data = {
     "set_num": 50,
     "rep_num": 500,
     "min_num": 0,
-    "max_num": 5,
+    "max_num": 23,
     "action": "dice_action",
-    "dice_nonce_field": "6a18937bdf",
+    "dice_nonce_field": "562d0927c8",
     "_wp_http_referer": "/dice-throw/"
 }
 
@@ -51,7 +51,7 @@ post_response = requests.post(url_post, data=form_data, headers=headers, verify=
 jsontxt = json.loads(post_response.json())
 output = (jsontxt["output"])
 #print(type(output))
-with open("QRNGIntegers.txt", "a") as f:
+with open("QRNGIntegers23-0-0.txt", "a") as f:
     for _list in output:
         for _string in _list:
             #f.seek(0)

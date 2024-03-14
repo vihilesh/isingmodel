@@ -13,12 +13,6 @@ from scipy.sparse import spdiags,linalg,eye
 from enum import Enum
 
 
-nt      = 16          #  number of temperature points
-N       = 6           #  size of the lattice, N x N
-eqSteps = 2**8        #  number of MC sweeps for equilibration
-mcSteps = 2**10     #  number of MC sweeps for calculation
-
-
 
 class PRNG(Enum):
     PCG64 = 1
@@ -38,28 +32,22 @@ class RNG :
 def initLattice(RNG, N):
 
     lattice = RNG.prng.integers(size=(N,N), low=0, high=1, endpoint=True)
+    #lattice = 2*np.random.randint(2, size=(N,N))-1
     lattice[lattice==0] =- 1
 
     return lattice  
     
-def bc(i, N):
-    if i > N-1:
-        return 0
-    
-    if i < 0:
-     return N-1
-    else:
-        return i
 
-def mcmove(lattice, RNG, beta):
+def mcmove(lattice, RNG, beta, sizeof_lattice):
     '''
     Monte Carlo move using Metropolis algorithm 
     '''
+    N = sizeof_lattice
     for i in range(N):
         for j in range(N):
                 a =  RNG.prng.integers(low=0, high=N, size=1, dtype=np.int8, endpoint=False)
                 b =  RNG.prng.integers(low=0, high=N, size=1, dtype=np.int8, endpoint=False)
-                s =  lattice[a[0], b[0]]
+                s =  lattice[a, b]
                 nb = lattice[(a+1)%N,b] + lattice[a,(b+1)%N] + lattice[(a-1)%N,b] + lattice[a,(b-1)%N]
                 cost = 2*s*nb
                 
@@ -70,18 +58,17 @@ def mcmove(lattice, RNG, beta):
                 lattice[a, b] = s
     return lattice
 
-def calcEnergy(config):
-    '''
-    Energy of a given configuration
-    '''
-    energy = 0 
-    
+
+def calcEnergy(config, sizeof_lattice):
+    '''Energy of a given configuration'''
+    energy = 0
+    N = sizeof_lattice
     for i in range(len(config)):
         for j in range(len(config)):
             S = config[i,j]
             nb = config[(i+1)%N, j] + config[i,(j+1)%N] + config[(i-1)%N, j] + config[i,(j-1)%N]
             energy += -nb*S
-    return energy/2.  # to compensate for over-counting
+    return energy/4
 
 def calcMag(config):
     '''
@@ -90,54 +77,6 @@ def calcMag(config):
     mag = np.sum(config)
     return mag
 
-
-# #rng = RNG(PRNG.PCG64)
-# rngstr = ""
-# # if (PRNG.MT19937):
-# #     rng = RNG(PRNG.MT19937)
-# #     rngstr = "Mersenne Twister"
-
-# if (PRNG.PCG64):
-#     rng = RNG(PRNG.PCG64)
-#     rngstr = "PCG64"
-
-# titlestr = "RNG-" + rngstr + "-MCSteps-" + str(mcSteps) + "-EqSteps-" + str(eqSteps) + "-Lattice:" + str(N)
-
-# #get a array of floating temp values between the low and high
-# T       = np.linspace(1.53, 3.28, nt); 
-
-# #zero out the values for E, M, C and X for nt size. 
-# E,M,C,X = np.zeros(nt), np.zeros(nt), np.zeros(nt), np.zeros(nt)
-
-
-# n1, n2  = 1.0/(mcSteps*N*N), 1.0/(mcSteps*mcSteps*N*N) 
-
-# #loop over all temperatues in the nt array
-# for tt in range(nt):
-#     lattice = initLattice(rng, N)        # initialise
-
-#     E1 = M1 = E2 = M2 = 0
-#     iT=1.0/T[tt]; iT2=iT*iT;         # beta in other words
-    
-#     for i in range(eqSteps):         # equilibrate
-#         mcmove(lattice, rng, iT)           # Monte Carlo moves
-
-#     for i in range(mcSteps):
-#         mcmove(lattice, rng, iT)           
-#         Ene = calcEnergy(lattice)     # calculate the energy
-#         Mag = calcMag(lattice)        # calculate the magnetisation
-
-#         E1 = E1 + Ene
-#         M1 = M1 + Mag
-#         M2 = M2 + Mag*Mag 
-#         E2 = E2 + Ene*Ene
-
-
-#     # divide by number of sites and iteractions to obtain intensive values    
-#     E[tt] = n1*E1
-#     M[tt] = n1*M1
-#     C[tt] = (n1*E2 - n2*E1*E1)*iT2
-#     X[tt] = (n1*M2 - n2*M1*M1)*iT
 
 def plotfigure(titlestr, E, T, C, X, M):
     f = plt.figure(figsize=(18, 10)); #  
@@ -183,14 +122,15 @@ def main():
     parser.add_argument('--EQSteps', type=int, help='Equalibriation steps')
     parser.add_argument('--Lattice', type=int, help='Lattice matrix')
     parser.add_argument('--TempPts', type=int, help='Temperature Points')
+    parser.add_argument('--Trial', type=int, help='Trial #')
     args = parser.parse_args()
-
 
     print(args.RNG)
     print(args.MCSteps)
     print(args.EQSteps)
     print(args.Lattice)
     print(args.TempPts)
+    print(args.Trial)
 
     nt = args.TempPts
     N = args.Lattice
@@ -206,7 +146,10 @@ def main():
         raise Exception("Invalid RNG specified")
 
 
-    titlestr = "RNG-" + rngstr + "-MCSteps-" + str(mcSteps) + "-EqSteps-" + str(eqSteps) + "-Lattice-" + str(N) + "-TempPts-" + str(args.TempPts)
+
+    trialstr = "-Trial-"+ str(args.Trial) # + "-"
+    titlestr = "RNG-" + rngstr + "-MCSteps-" + str(mcSteps) + "-EqSteps-" + str(eqSteps) + "-Ltce-" + str(N) + "-TPts-" + str(args.TempPts)
+    titlestr = titlestr+trialstr
     print(titlestr)
 
     #get a array of floating temp values between the low and high
@@ -226,11 +169,11 @@ def main():
         iT=1.0/T[tt]; iT2=iT*iT;         # beta in other words
         
         for i in range(eqSteps):         # equilibrate
-            mcmove(lattice, rng, iT)           # Monte Carlo moves
+            mcmove(lattice, rng, iT,N)           # Monte Carlo moves
 
         for i in range(mcSteps):
-            mcmove(lattice, rng, iT)           
-            Ene = calcEnergy(lattice)     # calculate the energy
+            mcmove(lattice, rng, iT,N)           
+            Ene = calcEnergy(lattice,N)     # calculate the energy
             Mag = calcMag(lattice)        # calculate the magnetisation
 
             E1 = E1 + Ene
@@ -244,6 +187,7 @@ def main():
         M[tt] = n1*M1
         C[tt] = (n1*E2 - n2*E1*E1)*iT2
         X[tt] = (n1*M2 - n2*M1*M1)*iT
+        print (tt)
 
     plotfigure(titlestr, E, T, C, X, M)
 
